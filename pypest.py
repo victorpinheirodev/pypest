@@ -1,15 +1,10 @@
-import sys
-import traceback
-import types
-from typing import List, Dict, Callable, Any, Optional
-
+from typing import List, Callable, Optional
 
 class TestResult:
   def __init__(self):
     self.passed = 0
     self.failed = 0
     self.errors: List[str] = []
-
 
 class TestSuite:
   def __init__(self, name: str):
@@ -21,12 +16,10 @@ class TestSuite:
     self.after_all_hooks: List[Callable] = []
     self.nested_suites: List['TestSuite'] = []
 
-
 class Test:
   def __init__(self, name: str, test_func: Callable):
     self.name = name
     self.test_func = test_func
-
 
 class TestRunner:
   def __init__(self):
@@ -51,14 +44,6 @@ class TestRunner:
 
     self.suite_stack.pop()
     self.current_suite = parent_suite
-    
-    # Auto-run tests when we finish a root-level describe block
-    if parent_suite is None:
-      self.run()
-      # Clear root suites after execution to prevent re-running
-      self.root_suites.clear()
-      # Reset results for potential future test runs
-      self.result = TestResult()
 
   def it(self, name: str, test_func: Callable):
     if not self.current_suite:
@@ -90,7 +75,6 @@ class TestRunner:
   def run_suite(self, suite: TestSuite, indent: int = 0):
     print("  " * indent + suite.name)
 
-    # Run beforeAll hooks
     for hook in suite.before_all_hooks:
       try:
         hook()
@@ -99,7 +83,6 @@ class TestRunner:
         self.result.errors.append(error_msg)
         print("  " * (indent + 1) + f" {error_msg}")
 
-    # Run tests
     for test in suite.tests:
       # Run beforeEach hooks
       for hook in suite.before_each_hooks:
@@ -110,7 +93,6 @@ class TestRunner:
           self.result.errors.append(error_msg)
           print("  " * (indent + 1) + f" {error_msg}")
 
-      # Run the test
       try:
         test.test_func()
         self.result.passed += 1
@@ -121,7 +103,6 @@ class TestRunner:
         self.result.errors.append(error_msg)
         print("  " * (indent + 1) + f" {error_msg}")
 
-      # Run afterEach hooks
       for hook in suite.after_each_hooks:
         try:
             hook()
@@ -130,11 +111,9 @@ class TestRunner:
             self.result.errors.append(error_msg)
             print("  " * (indent + 1) + f" {error_msg}")
 
-    # Run nested suites
     for nested_suite in suite.nested_suites:
       self.run_suite(nested_suite, indent + 1)
 
-    # Run afterAll hooks
     for hook in suite.after_all_hooks:
       try:
         hook()
@@ -160,21 +139,6 @@ class TestRunner:
         print(f"  - {error}")
 
     return self.result.failed == 0
-
-
-# Global test runner instance
-_test_runner = TestRunner()
-
-# Export the main functions
-describe = _test_runner.describe
-it = _test_runner.it
-before_each = _test_runner.before_each
-before_all = _test_runner.before_all
-after_each = _test_runner.after_each
-after_all = _test_runner.after_all
-
-
-
 
 class Expectation:
   def __init__(self, actual):
@@ -253,6 +217,15 @@ class Expectation:
         raise AssertionError(f"Expected function to throw {expected_exception}, but got {type(e)}")
     return self
 
-
 def expect(actual):
   return Expectation(actual)
+
+_test_runner = TestRunner()
+
+describe = _test_runner.describe
+it = _test_runner.it
+before_each = _test_runner.before_each
+before_all = _test_runner.before_all
+after_each = _test_runner.after_each
+after_all = _test_runner.after_all
+run_tests = _test_runner.run

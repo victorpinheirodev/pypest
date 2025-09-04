@@ -1,5 +1,4 @@
-from pypest import describe, it, expect, before_each, after_each, before_all, after_all
-
+from pypest import describe, it, expect, before_each, after_each, before_all, after_all, run_tests
 
 # Example test suite demonstrating basic functionality
 describe("Math operations", lambda: [
@@ -23,11 +22,11 @@ describe("Counter tests with hooks", lambda: [
   before_all(lambda: print("Starting counter tests")),
 
   after_all(lambda: print("Finished counter tests")),
-  
+
   before_each(lambda: globals().update(counter=0)),
 
   after_each(lambda: print(f"Counter after test: {counter}")),
-  
+
   it("should start at zero", lambda: (
     expect(counter).to_equal(0)
   )),
@@ -84,22 +83,25 @@ describe("Expectation matchers", lambda: [
 # Example with nested test suites
 describe("Nested test suites", lambda: [
   it("should run outer test", lambda: (
-    expect(1).to_equal(1)
+    expect(1).to_equal(2)
   )),
-  
+
   describe("Inner suite", lambda: [
     it("should run inner test", lambda: (
       expect(2).to_equal(2)
     )),
-    
+
     describe("Deeply nested suite", lambda: [
       it("should run deeply nested test", lambda: (
         expect(3).to_equal(3)
       )),
     ]),
   ]),
-  
+
   it("should run another outer test", lambda: (
     expect(4).to_equal(4)
   )),
 ])
+
+# Run all tests
+run_tests()
