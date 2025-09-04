@@ -270,14 +270,22 @@ def find_test_files(directory: str = ".") -> List[str]:
 
   return test_files
 
-def run_test_file(file_path: str) -> tuple[bool, int, int]:
+def run_test_file(file_path: str, cwd: str = None) -> tuple[bool, int, int]:
   """Run a test file as a separate Python process and parse results."""
   import subprocess
   import re
 
   try:
+    env = os.environ.copy()
+    if cwd:
+      current_path = env.get('PYTHONPATH', '')
+      if current_path:
+        env['PYTHONPATH'] = f"{cwd}{os.pathsep}{current_path}"
+      else:
+        env['PYTHONPATH'] = cwd
+
     result = subprocess.run([sys.executable, file_path],
-                          capture_output=True, text=True, cwd=os.path.dirname(file_path) or ".")
+                          capture_output=True, text=True, cwd=cwd, env=env)
 
     output = result.stdout
     print(output, end="")
@@ -285,7 +293,6 @@ def run_test_file(file_path: str) -> tuple[bool, int, int]:
     if result.stderr:
       print("STDERR:", result.stderr, end="")
 
-    # Parse the results from output
     passed_match = re.search(r'Passed: (\d+)', output)
     failed_match = re.search(r'Failed: (\d+)', output)
 
@@ -305,16 +312,17 @@ def main():
   parser.add_argument("--pattern", help="Custom pattern for test files (e.g., 'spec_*.py')")
 
   args = parser.parse_args()
+  original_cwd = os.getcwd()
 
-  # Check if the path is a specific file
   if os.path.isfile(args.path):
-    test_files = [args.path]
+    test_files = [os.path.abspath(args.path)]
   elif os.path.isdir(args.path):
-    # It's a directory, search for test files
     if args.pattern:
       test_files = glob.glob(os.path.join(args.path, "**", args.pattern), recursive=True)
     else:
       test_files = find_test_files(args.path)
+
+    test_files = [os.path.abspath(f) for f in test_files]
 
     if not test_files:
       print(f"No test files found in {args.path}")
@@ -336,7 +344,7 @@ def main():
     print(f"Running tests from {file_path}:")
     print("=" * 50)
 
-    success, passed, failed = run_test_file(file_path)
+    success, passed, failed = run_test_file(file_path, original_cwd)
     total_passed += passed
     total_failed += failed
 
