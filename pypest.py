@@ -277,18 +277,26 @@ def run_test_file(file_path: str) -> tuple[bool, int, int]:
 
 def main():
   parser = argparse.ArgumentParser(description="pypest - Python testing framework")
-  parser.add_argument("directory", nargs="?", default=".", help="Directory to search for test files (default: current directory)")
+  parser.add_argument("path", nargs="?", default=".", help="Directory to search for test files or specific test file to run (default: current directory)")
   parser.add_argument("--pattern", help="Custom pattern for test files (e.g., 'spec_*.py')")
   
   args = parser.parse_args()
   
-  if args.pattern:
-    test_files = glob.glob(os.path.join(args.directory, "**", args.pattern), recursive=True)
+  # Check if the path is a specific file
+  if os.path.isfile(args.path):
+    test_files = [args.path]
+  elif os.path.isdir(args.path):
+    # It's a directory, search for test files
+    if args.pattern:
+      test_files = glob.glob(os.path.join(args.path, "**", args.pattern), recursive=True)
+    else:
+      test_files = find_test_files(args.path)
+    
+    if not test_files:
+      print(f"No test files found in {args.path}")
+      return 1
   else:
-    test_files = find_test_files(args.directory)
-  
-  if not test_files:
-    print(f"No test files found in {args.directory}")
+    print(f"Path not found: {args.path}")
     return 1
   
   print(f"Found {len(test_files)} test file(s):")
