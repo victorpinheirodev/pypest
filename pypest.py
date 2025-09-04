@@ -1,4 +1,10 @@
+#!/usr/bin/env python3
 from typing import List, Callable, Optional
+import os
+import sys
+import glob
+import argparse
+import importlib.util
 
 class TestResult:
   def __init__(self):
@@ -229,3 +235,91 @@ before_all = _test_runner.before_all
 after_each = _test_runner.after_each
 after_all = _test_runner.after_all
 run_tests = _test_runner.run
+
+def find_test_files(directory: str = ".") -> List[str]:
+  test_files = []
+  patterns = ["test_*.py", "*_test.py", "tests.py"]
+  
+  for root, dirs, files in os.walk(directory):
+    for pattern in patterns:
+      test_files.extend(glob.glob(os.path.join(root, pattern)))
+  
+  return test_files
+
+def run_test_file(file_path: str) -> tuple[bool, int, int]:
+  """Run a test file as a separate Python process and parse results."""
+  import subprocess
+  import re
+  
+  try:
+    result = subprocess.run([sys.executable, file_path], 
+                          capture_output=True, text=True, cwd=os.path.dirname(file_path) or ".")
+    
+    output = result.stdout
+    print(output, end="")
+    
+    if result.stderr:
+      print("STDERR:", result.stderr, end="")
+    
+    # Parse the results from output
+    passed_match = re.search(r'Passed: (\d+)', output)
+    failed_match = re.search(r'Failed: (\d+)', output)
+    
+    passed = int(passed_match.group(1)) if passed_match else 0
+    failed = int(failed_match.group(1)) if failed_match else 0
+    
+    success = result.returncode == 0 and failed == 0
+    return success, passed, failed
+    
+  except Exception as e:
+    print(f"Error running test file {file_path}: {e}")
+    return False, 0, 0
+
+def main():
+  parser = argparse.ArgumentParser(description="pypest - Python testing framework")
+  parser.add_argument("directory", nargs="?", default=".", help="Directory to search for test files (default: current directory)")
+  parser.add_argument("--pattern", help="Custom pattern for test files (e.g., 'spec_*.py')")
+  
+  args = parser.parse_args()
+  
+  if args.pattern:
+    test_files = glob.glob(os.path.join(args.directory, "**", args.pattern), recursive=True)
+  else:
+    test_files = find_test_files(args.directory)
+  
+  if not test_files:
+    print(f"No test files found in {args.directory}")
+    return 1
+  
+  print(f"Found {len(test_files)} test file(s):")
+  for file_path in test_files:
+    print(f"  - {file_path}")
+  print()
+  
+  all_passed = True
+  total_passed = 0
+  total_failed = 0
+  
+  for file_path in test_files:
+    print(f"Running tests from {file_path}:")
+    print("=" * 50)
+    
+    success, passed, failed = run_test_file(file_path)
+    total_passed += passed
+    total_failed += failed
+    
+    if not success:
+      all_passed = False
+    
+    print("=" * 50)
+    print()
+  
+  print(f"Overall Results:")
+  print(f"Total Passed: {total_passed}")
+  print(f"Total Failed: {total_failed}")
+  print(f"Total Tests: {total_passed + total_failed}")
+  
+  return 0 if all_passed else 1
+
+if __name__ == "__main__":
+  sys.exit(main())
